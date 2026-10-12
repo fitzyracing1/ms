@@ -464,3 +464,37 @@ describe('ms(invalid inputs)', function() {
     }).to.throwError();
   });
 });
+
+// format() must never emit scientific notation that parse() cannot read
+// (port of https://github.com/vercel/ms/pull/299)
+
+describe('ms(number) without scientific notation', function () {
+  it('formats tiny millisecond values as decimals', function () {
+    expect(ms(1e-7)).to.be('0.0000001ms');
+    expect(ms(-1e-7)).to.be('-0.0000001ms');
+    expect(ms(1e-7, { long: true })).to.be('0.0000001 ms');
+  });
+
+  it('formats huge values as plain integers', function () {
+    expect(ms(1e30)).to.be('11574074074074075000000d');
+    expect(ms(-1e30)).to.be('-11574074074074075000000d');
+    expect(ms(1e30, { long: true })).to.be('11574074074074075000000 days');
+    expect(ms(1e30)).to.not.contain('e');
+  });
+
+  it('round-trips format -> parse for values whose output fits parse()', function () {
+    [1e-7, 2.5e-9, -1e-7, 1e30, -1e30].forEach(
+      function (v) {
+        expect(ms(ms(v))).to.be(v);
+      }
+    );
+  });
+
+  it('leaves ordinary output unchanged', function () {
+    expect(ms(500)).to.be('500ms');
+    expect(ms(1.5)).to.be('1.5ms');
+    expect(ms(60000)).to.be('1m');
+    expect(ms(234234234)).to.be('3d');
+    expect(ms(-3 * 60000, { long: true })).to.be('-3 minutes');
+  });
+});

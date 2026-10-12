@@ -105,6 +105,44 @@ function parse(str) {
 }
 
 /**
+ * Stringify a number without scientific notation so that `parse()` can read
+ * the output back (port of vercel/ms#299 to ms@2.1.3, without Intl).
+ * Numbers that do not stringify to exponent form are returned as String(n),
+ * so ordinary output is byte-for-byte unchanged.
+ *
+ * @param {Number} n
+ * @return {String}
+ * @api private
+ */
+
+function numberToDecimalString(n) {
+  var str = String(n);
+  var e = str.indexOf('e');
+  if (e === -1) {
+    return str;
+  }
+  var sign = '';
+  var mantissa = str.slice(0, e);
+  var exp = parseInt(str.slice(e + 1), 10);
+  if (mantissa.charAt(0) === '-') {
+    sign = '-';
+    mantissa = mantissa.slice(1);
+  }
+  var dot = mantissa.indexOf('.');
+  var intPart = dot === -1 ? mantissa : mantissa.slice(0, dot);
+  var fracPart = dot === -1 ? '' : mantissa.slice(dot + 1);
+  var digits = intPart + fracPart;
+  var point = intPart.length + exp;
+  if (point <= 0) {
+    return sign + '0.' + new Array(1 - point).join('0') + digits;
+  }
+  if (point >= digits.length) {
+    return sign + digits + new Array(point - digits.length + 1).join('0');
+  }
+  return sign + digits.slice(0, point) + '.' + digits.slice(point);
+}
+
+/**
  * Short format for `ms`.
  *
  * @param {Number} ms
@@ -117,18 +155,18 @@ function fmtShort(ms, decimal) {
   var msAbs = Math.abs(ms);
   var base = Math.pow(10, decimal);
   if (msAbs >= d) {
-    return Math.round((ms / d) * base) / base + 'd';
+    return numberToDecimalString(Math.round((ms / d) * base) / base) + 'd';
   }
   if (msAbs >= h) {
-    return Math.round((ms / h) * base) / base + 'h';
+    return numberToDecimalString(Math.round((ms / h) * base) / base) + 'h';
   }
   if (msAbs >= m) {
-    return Math.round((ms / m) * base) / base + 'm';
+    return numberToDecimalString(Math.round((ms / m) * base) / base) + 'm';
   }
   if (msAbs >= s) {
-    return Math.round((ms / s) * base) / base + 's';
+    return numberToDecimalString(Math.round((ms / s) * base) / base) + 's';
   }
-  return ms + 'ms';
+  return numberToDecimalString(ms) + 'ms';
 }
 
 /**
@@ -154,7 +192,7 @@ function fmtLong(ms, demical) {
   if (msAbs >= s) {
     return plural(ms, msAbs, s, 'second', demical);
   }
-  return ms + ' ms';
+  return numberToDecimalString(ms) + ' ms';
 }
 
 /**
@@ -165,6 +203,9 @@ function plural(ms, msAbs, n, name, demical) {
   var isPlural = msAbs >= n * 1.5;
   var base = Math.pow(10, demical);
   return (
-    Math.round((ms / n) * base) / base + ' ' + name + (isPlural ? 's' : '')
+    numberToDecimalString(Math.round((ms / n) * base) / base) +
+    ' ' +
+    name +
+    (isPlural ? 's' : '')
   );
 }
