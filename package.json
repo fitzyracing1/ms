@@ -5,7 +5,8 @@
   "repository": "vercel/ms",
   "main": "./index",
   "files": [
-    "index.js"
+    "index.js",
+    "PATCH-CLOUD.md"
   ],
   "scripts": {
     "precommit": "lint-staged",
@@ -34,5 +35,16 @@
     "lint-staged": "5.0.0",
     "mocha": "4.0.1",
     "prettier": "2.0.5"
+  },
+  "_patchCloud": {
+    "fork": "https://github.com/fitzyracing1/ms",
+    "branch": "patch-cloud",
+    "upstream": "https://github.com/vercel/ms",
+    "upstreamPr": "https://github.com/vercel/ms/pull/299",
+    "upstreamIssue": "https://github.com/vercel/ms/issues/284",
+    "baseRef": "tag 2.1.3",
+    "upstreamVersion": "2.1.3",
+    "fix": "format() no longer emits scientific notation (e.g. ms(1e30) gave '1.1574074074074075e+22d', ms(1e-7) gave '1e-7ms') that parse() cannot read back, so ms(ms(x)) round-trips. Also adds the opt-in `decimal` formatting option from PR #125.",
+    "details": "See PATCH-CLOUD.md in this package."
   }
 }
