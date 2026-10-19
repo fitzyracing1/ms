@@ -1,0 +1,68 @@
+# Manual-only: publishes @fitzyracing1/ms to GitHub Packages (npm.pkg.github.com).
+# Never runs on push/PR. Run it from the Actions tab ("Run workflow") and type PUBLISH.
+name: Publish @fitzyracing1/ms to GitHub Packages (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type PUBLISH to publish @fitzyracing1/ms to GitHub Packages'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-github-packages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require confirm == PUBLISH
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "PUBLISH" ]; then
+            echo "::error::confirm input must be exactly PUBLISH (got '$CONFIRM'); nothing published."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
+          scope: '@fitzyracing1'
+      - name: Check package name, registry and version
+        id: meta
+        working-directory: .
+        run: |
+          node -e '
+            const p = require("./package.json");
+            if (p.name !== "@fitzyracing1/ms") throw new Error("name is " + p.name);
+            if (!p.publishConfig || p.publishConfig.registry !== "https://npm.pkg.github.com") throw new Error("publishConfig.registry not GitHub Packages");
+          '
+          echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
+      - name: Skip if this version is already on GitHub Packages
+        id: exists
+        working-directory: .
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if npm view "@fitzyracing1/ms@${{ steps.meta.outputs.version }}" version --registry https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"; echo "@fitzyracing1/ms@${{ steps.meta.outputs.version }} already published; skipping."
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: List files that will be published
+        working-directory: .
+        run: npm pack --dry-run --ignore-scripts
+      - name: Publish
+        if: steps.exists.outputs.already == 'false'
+        working-directory: .
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish --ignore-scripts
